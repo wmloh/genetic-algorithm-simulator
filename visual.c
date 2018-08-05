@@ -1,37 +1,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "process.c"
 
-void mapPrint(int **map, int size) {
-
+void boxPrint(int **box, int size) {
 	for(int i = 0; i < size; ++i) {
 		for(int j = 0; j < size; ++j) {
-			int x = map[i][j];
-			if(x == -1) {
-				printf("%i",map[i][j]);
+			int x = box[i][j];
+			if(x < 0) {
+				printf("%i", x);
 			} else {
-				printf(" %i",map[i][j]);
+				printf(" %i", x);
 			}
-			
+
 		}
 		printf("\n");
 	}
 	printf("\n");
-	
 }
 
-void mapPrintDble(double **map, int size) {
+void boxPrintDble(double **box, int size) {
 	for(int i = 0; i < size; ++i) {
 		for(int j = 0; j < size; ++j) {
-			double x = map[i][j];
-			if(x == 0) {
-				printf(" %f",map[i][j]);
+			double x = box[i][j];
+			if(x < 0) {
+				printf("%f", x);
 			} else {
-				printf("%f",map[i][j]);
+				printf(" %f", x);
 			}
-			
 		}
 		printf("\n");
 	}
 	printf("\n");
+}
+
+void mapPrint(Map map) {
+	boxPrint(map->arr, map->size);
 }

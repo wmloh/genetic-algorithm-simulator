@@ -2,12 +2,12 @@
 #include <string.h>
 #include "convolution.c"
 
-const int primaryInput = 8;
+const int primaryInput = 3;
 const double majorMutation = 0.01;
 
 struct mouse {
 	int gen;
-	double *primaryW;
+	double **primaryW;
 	double **peripheralW;
 	int visionRange;
 	double alpha; // significance of peripheral vision
@@ -18,38 +18,43 @@ typedef struct mouse *Mouse;
 Mouse initGenesis(void) {
 	Mouse m = malloc(sizeof(struct mouse));
 	m->gen = 1;
-	m->primaryW = malloc(sizeof(double) * primaryInput);
+	m->primaryW = malloc(sizeof(double *) * 3);
 	m->peripheralW = malloc(sizeof(double *) * 3);
 	m->visionRange = 1;
 	m->alpha = 0.1;
-	#pragma omp parallel for
-	for(int i = 0; i < primaryInput; ++i) {
-		(m->primaryW)[i] = randomSmall(true);
-	}
-	double *arr;
+	double *arr1;
+	double *arr2;
+	
 	for(int i = 0; i < 3; ++i) {
-		arr = malloc(sizeof(double) * 3);
+		arr1 = malloc(sizeof(double) * 3);
+		arr2 = malloc(sizeof(double) * 3);
 		for(int j = 0; j < 3; ++j) {
-			arr[j] = 0;
+			arr1[j] = randomSmall(true);
+			arr2[j] = 0;
 		}
-		(m->peripheralW)[i] = arr;
+		(m->primaryW)[i] = arr1;
+		(m->peripheralW)[i] = arr2;
 	}
+	(m->primaryW)[1][1] = 0;
 	return m;
 }
 
 Mouse procreate(Mouse mParent) {
 	Mouse mChild = malloc(sizeof(struct mouse));
 	mChild->gen = mParent->gen + 1;
-	mChild->primaryW = malloc(sizeof(double) * primaryInput);
+	mChild->primaryW = malloc(sizeof(double *) * primaryInput);
 
 	#pragma omp parallel for
 	for(int i = 0; i < primaryInput; ++i) {
-		(mChild->primaryW)[i] = (mParent->primaryW)[i] + randomSmall(true);
+		(mChild->primaryW)[i] = malloc(sizeof(double) * primaryInput);
+		for(int j = 0; j < primaryInput; ++j) {
+			(mChild->primaryW)[i][j] = (mParent->primaryW)[i][j] + randomSmall(true);
+		}
 	}
 
 	int units;
 	//if(randomBool(majorMutation, ((double) 1) - majorMutation)) {
-	if(true) {
+	if(true){
 		mChild->visionRange = mParent->visionRange + 1;
 		int len = mChild->visionRange;
 		int origLen = len - 1;
@@ -57,7 +62,7 @@ Mouse procreate(Mouse mParent) {
 		units = 2 * len + 1;
 		int origUnits = 2 * origLen + 1;
 		mChild->peripheralW = malloc(sizeof(double *) * units);
-
+		
 		double *arr;
 		arr = malloc(sizeof(double) * units);
 		for(int i = 0; i < units; ++i) {
@@ -68,6 +73,7 @@ Mouse procreate(Mouse mParent) {
 		for(int i = 0; i < origUnits; ++i) {
 			arr = malloc(sizeof(double) * units);
 			arr[0] = randomSmall(true);
+			#pragma omp parallel for
 			for(int j = 0; j < origUnits; ++j) {
 				arr[j + 1] = (mParent->peripheralW)[i][j];
 			}
@@ -80,7 +86,7 @@ Mouse procreate(Mouse mParent) {
 			arr[i] = randomSmall(true);
 		}
 		(mChild->peripheralW)[units-1] = arr;
-
+		
 	} else {
 		mChild->visionRange = mParent->visionRange;
 		int len = mChild->visionRange;
@@ -88,14 +94,19 @@ Mouse procreate(Mouse mParent) {
 		
 		mChild->peripheralW = malloc(sizeof(double *) * units);
 		if(mChild->visionRange != 1) {
-			for(int i = 0; i < len; ++i) {
+			for(int i = 0; i < units; ++i) {
 				#pragma omp parallel for
-				for(int j = 0; j < len; ++j) {
-					(mChild->peripheralW)[i][j] = (mParent->peripheralW)[i][j] + randomSmall(true);
+				for(int j = 0; j < units; ++j) {
+					if(len <= i && i <= len + 2 && len <= j && j <= len + 2) {
+						(mChild->peripheralW)[i][j] = 0;
+					} else {
+						(mChild->peripheralW)[i][j] = (mParent->peripheralW)[i][j] + randomSmall(true);	
+					}
 				}
 			}
 		} else {
 			double *arr;
+			#pragma omp parallel for
 			for(int i = 0; i < 3; ++i) {
 				arr = malloc(sizeof(double) * 3);
 				for(int j = 0; j < 3; ++j) {
@@ -128,7 +139,10 @@ void saveMouse(Mouse m, char *fileName) {
 
 	fprintf(fp, ">> primaryW\r\n");
 	for(int i = 0; i < primaryInput; ++i) {
-		fprintf(fp, " %f\r\n", (m->primaryW)[i]);
+		fprintf(fp, "*index:%i\r\n", i);
+		for(int j = 0; j < primaryInput; ++j) {
+			fprintf(fp, " %f\r\n", (m->primaryW)[i][j]);
+		}
 	}
 	fprintf(fp, "-----\r\n");
 
@@ -154,9 +168,12 @@ Mouse loadMouse(char *fileName) {
 	char c = fgetc(fp);
 	int count = 0;
 
+	int x;
+	int y;
+	int len;
+
 	Mouse m = malloc(sizeof(struct mouse));
-	m->primaryW = malloc(sizeof(double) * primaryInput);
-	int pcount = 0;
+	m->primaryW = malloc(sizeof(double *) * primaryInput);
 
 	while(c != 'E') {
 		if(c == ' ') {
@@ -177,29 +194,34 @@ Mouse loadMouse(char *fileName) {
 			} else if (count == 4) {
 				double val;
 				sscanf(s, "%lf", &val);
-				(m->primaryW)[pcount] = val;
-				++pcount;
+				(m->primaryW)[y][x] = val;
+				x++;
 			} else if (count == 5) {
-				int len = atoi(s);
-				m->peripheralW = malloc(sizeof(double *) * len);
 				double val;
-				for(int i = 0; i < len; ++i) {
-					double *arr = malloc(sizeof(double) * len);
-					fgets(buffer, 50, fp);
-					for(int j = 0; j < len; ++j) {
-						fgetc(fp);
-						s = fgets(buffer, 50, fp);
-						if((pos=strchr(s, '\n'))) *pos = '\0';
-						sscanf(s, "%lf", &val);
-						arr[j] = val;
-					}
-					(m->peripheralW)[i] = arr;
-				}
+				sscanf(s, "%lf", &val);
+				(m->peripheralW)[y][x] = val;
+				x++;
 			}
 			
 		} else if (c == '>') {
+			int val;
 			count++;
+			y = -1;
 			fgets(buffer, 50, fp);
+			if(count == 5) {
+				fgetc(fp);
+				char *s = fgets(buffer, 50, fp);
+				len = atoi(s);
+				m->peripheralW = malloc(sizeof(double *) * len);
+			}
+		} else if (c == '*') {
+			x = 0;
+			y++;
+			if(count == 4) {
+				(m->primaryW)[y] = malloc(sizeof(double) * primaryInput);
+			} else if (count == 5) {
+				(m->peripheralW)[y] = malloc(sizeof(double) * primaryInput);
+			}
 		} else {
 			fgets(buffer, 50, fp);
 		} 
@@ -207,4 +229,17 @@ Mouse loadMouse(char *fileName) {
 	}
 	fclose(fp);
 	return m;
+}
+
+void exterminate(Mouse m) {
+	int len = 2 * m->visionRange + 1;
+	for(int i = 0; i < primaryInput; ++i) {
+		free((m->primaryW)[i]);
+	}
+	for(int i = 0; i < len; ++i) {
+		free((m->peripheralW)[i]);
+	}
+	free(m->peripheralW);
+	free(m->primaryW);
+	free(m);
 }

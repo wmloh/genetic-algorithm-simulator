@@ -28,13 +28,44 @@ bool randomBool(double t, double f) {
 	return false;
 }
 
-int **getBox(int **map, int x0, int y0, int boxSize) {
+int randomChoice(double p1, double p2, double p3, double p4) {
+	double num = ((double) rand()) / RAND_MAX;
+	if(num <= p1) {
+		return 0;
+	} else if (num <= p1 + p2) {
+		return 1;
+	} else if (num <= p1 + p2 + p3) {
+		return 2;
+	}
+	return 3;
+}
+
+double max(double **arr, int size, int *x, int *y) {
+	double output = arr[0][0];
+	*x = 0;
+	*y = 0;
+	for(int i = 0; i < size; ++i) {
+		for(int j = 0; j < size; ++j) {
+			if(arr[i][j] > output) {
+				output = arr[i][j];
+				*x = j;
+				*y = i;
+			}
+		}
+	}
+	return output;
+}
+
+int **getBox(int **map, int x, int y, int boxSize) {
+	int offset = (boxSize - 1) / 2;
+	int x0 = x - offset;
+	int y0 = y - offset;
 	int **box = malloc(sizeof(int *) * boxSize);
 	for(int i = 0; i < boxSize; ++i) {
-		int *arr = malloc(sizeof(int *) * boxSize);
+		int *arr = malloc(sizeof(int) * boxSize);
 		#pragma omp parallel for
 		for(int j = 0; j < boxSize; ++j) {
-			arr[j] = map[i + x0][j + y0];
+			arr[j] = map[i + y0][j + x0];
 		}
 		box[i] = arr;
 	}
@@ -72,3 +103,75 @@ double convOpsSum(int **box, double **weight, int boxSize) {
 	}
 	return sum;
 }
+
+double **convDotDble(double **box1, double **box2, int size) {
+	double **output = malloc(sizeof(double *) * size);
+	for(int i = 0; i < size; ++i) {
+		output[i] = malloc(sizeof(double) * size);
+		for(int j = 0; j < size; ++j) {
+			output[i][j] = box1[i][j] + box2[i][j];
+		}
+	}
+	return output;
+}
+
+double **convDot(double **box1, int **box2, int size) {
+	double **output = malloc(sizeof(double *) * size);
+	for(int i = 0; i < size; ++i) {
+		output[i] = malloc(sizeof(double ) * size);
+		for(int j = 0; j < size; ++j) {
+			output[i][j] = box1[i][j] * box2[i][j];
+		}
+	}
+	return output;
+}
+
+double **convScalar(double **box, double c, int size) {
+	double **output = malloc(sizeof(double *) * size);
+	for(int i = 0; i < size; ++i) {
+		output[i] = malloc(sizeof(double) * size);
+		for(int j = 0; j < size; ++j) {
+			output[i][j] = box[i][j] * c;
+		}
+	}
+	return output;
+}
+
+void transferPrimary(double **box) {
+	box[0][1] += box[0][0] + box[0][2];
+	box[1][0] += box[0][0] + box[2][0];
+	box[2][1] += box[2][0] + box[2][2];
+	box[1][2] += box[0][2] + box[2][2];
+	box[0][0] = 0;
+	box[0][2] = 0;
+	box[2][0] = 0;
+	box[2][2] = 0;
+}
+
+void transferPeripheral(double **peri, int size, double **primary, double alpha) {
+	int center = (size - 1) / 2;
+	int x0 = center - 1;
+	int x1 = center + 1;
+	for(int i = 0; i < size; ++i) {
+		#pragma omp parallel for
+		for(int j = 0; j < size; ++j) {
+			if (i == j && j < x0) {
+				primary[0][0] += alpha * peri[j][i];
+			} else if (i + j == size - 1 && j < x0) {
+				primary[2][0] += alpha * peri[j][i];
+			} else if (i == j && j > x1) {
+				primary[2][2] += alpha * peri[j][i];
+			} else if (i + j == size - 1 && j > x1) {
+				primary[0][2] += alpha * peri[j][i];
+			} else if (j > i && i + j < size - 1 && i < x0) {
+				primary[0][1] += alpha * peri[j][i];
+			} else if (i > j && i + j > size - 1 && i > x1) {
+				primary[2][1] += alpha * peri[j][i];
+			} else if (j > i && i + j > size - 1 && j > x1) {
+				primary[1][2] += alpha * peri[j][i];
+			} else if (i > j && i + j < size - 1 && j < x0) {
+				primary[1][0] += alpha * peri[j][i];
+			}
+		}
+	}
+}	
