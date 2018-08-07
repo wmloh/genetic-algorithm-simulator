@@ -27,6 +27,7 @@ Map initMap(int size, Mouse m, int mouseX, int mouseY, int cheeseX, int cheeseY)
 	(map->arr)[cheeseY][cheeseX] = CHEESE;
 	map->size = size;
 	map->m = m;
+	generateMemory(m, size);
 	map->mousePos = malloc(sizeof(int) * 2);
 	map->cheesePos = malloc(sizeof(int) * 2);
 	(map->mousePos)[0] = mouseX;
@@ -36,9 +37,26 @@ Map initMap(int size, Mouse m, int mouseX, int mouseY, int cheeseX, int cheeseY)
 	return map;
 }
 
+void newMap(char *fileName, int size) {
+	char src[25];
+	strcpy(src, fileName);
+	FILE *fp = fopen(strcat(src, ".txt"), "w");
+
+	for(int i = 0; i < size; ++i) {
+		for(int j = 0; j < size; ++j) {
+			fprintf(fp, "0");
+		}
+		fprintf(fp, "\r\n");
+	}
+	fclose(fp);
+}
+
 void applyMap(char *fileName, Map map, int size) {
-	FILE *fp = fopen(fileName, "r");
-	char buffer[size + 2];
+	char src[25];
+	strcpy(src, fileName);
+	
+	FILE *fp = fopen(strcat(src, ".txt"), "r");
+	char buffer[size + 3];
 	for(int i = 0; i < size; ++i) {
 		
 		char *s = fgets(buffer, size+3, fp);
@@ -55,6 +73,29 @@ void applyMap(char *fileName, Map map, int size) {
 	}
 	(map->arr)[(map->mousePos)[1]][(map->mousePos)[0]] = MOUSE;
 	(map->arr)[(map->cheesePos)[1]][(map->cheesePos)[0]] = CHEESE;
+	fclose(fp);
+}
+
+void saveMap(Map map, char *fileName) {
+	char src[25];
+	strcpy(src, fileName);
+	FILE *fp = fopen(strcat(src, ".txt"), "a");
+
+	int size = map->size;
+
+	for(int i = 0; i < size; ++i) {
+		for(int j = 0; j < size; ++j) {
+			int x = (map->arr)[i][j];
+			if(x >= 0) {
+				fprintf(fp, " %i", x);
+			} else {
+				fprintf(fp, " %i", -x);
+			}
+			
+		}
+		fprintf(fp, "\r\n");
+	}
+	fprintf(fp, "\r\n");
 	fclose(fp);
 }
 

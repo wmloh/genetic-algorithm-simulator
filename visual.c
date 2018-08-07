@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "process.c"
+#include <unistd.h>
 
 void boxPrint(int **box, int size) {
 	for(int i = 0; i < size; ++i) {
@@ -36,4 +37,16 @@ void boxPrintDble(double **box, int size) {
 
 void mapPrint(Map map) {
 	boxPrint(map->arr, map->size);
+}
+
+void rowPrint(double *row, int size) {
+	for(int i = 0; i < size; ++i) {
+		double x = row[i];
+		if(x < 0) {
+			printf("%f", x);
+		} else {
+			printf(" %f", x);
+		}
+	}
+	printf("\n");
 }

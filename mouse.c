@@ -10,7 +10,10 @@ struct mouse {
 	double **primaryW;
 	double **peripheralW;
 	int visionRange;
+	int **memory;
 	double alpha; // significance of peripheral vision
+	double beta; // significance of diagonal primary vision
+	double theta; // significance of memory
 };
 
 typedef struct mouse *Mouse;
@@ -22,6 +25,8 @@ Mouse initGenesis(void) {
 	m->peripheralW = malloc(sizeof(double *) * 3);
 	m->visionRange = 1;
 	m->alpha = 0.1;
+	m->beta = 0.2;
+	m->theta = -0.2;
 	double *arr1;
 	double *arr2;
 	
@@ -118,7 +123,19 @@ Mouse procreate(Mouse mParent) {
 	}
 
 	mChild->alpha = mParent->alpha + randomSmall(true) / 10;
+	mChild->beta = mParent->beta + randomSmall(true) / 10;
 	return mChild;
+}
+
+void generateMemory(Mouse m, int size) {
+	m->memory = malloc(sizeof(int *) * size);
+	for(int i = 0; i < size; ++i) {
+		(m->memory)[i] = calloc(size, sizeof(int));
+	}
+}
+
+void incrementMemory(Mouse m, int x, int y) {
+	(m->memory)[y][x]++;
 }
 
 void saveMouse(Mouse m, char *fileName) {
@@ -135,6 +152,14 @@ void saveMouse(Mouse m, char *fileName) {
 
 	fprintf(fp, ">> alpha\r\n");
 	fprintf(fp, " %f\r\n", m->alpha);
+	fprintf(fp, "-----\r\n");
+
+	fprintf(fp, ">> beta\r\n");
+	fprintf(fp, " %f\r\n", m->beta);
+	fprintf(fp, "-----\r\n");
+
+	fprintf(fp, ">> theta\r\n");
+	fprintf(fp, " %f\r\n", m->theta);
 	fprintf(fp, "-----\r\n");
 
 	fprintf(fp, ">> primaryW\r\n");
@@ -194,9 +219,17 @@ Mouse loadMouse(char *fileName) {
 			} else if (count == 4) {
 				double val;
 				sscanf(s, "%lf", &val);
+				m->beta = val;
+			} else if (count == 5) {
+				double val;
+				sscanf(s, "%lf", &val);
+				m->theta = val;
+			} else if (count == 6) {
+				double val;
+				sscanf(s, "%lf", &val);
 				(m->primaryW)[y][x] = val;
 				x++;
-			} else if (count == 5) {
+			} else if (count == 7) {
 				double val;
 				sscanf(s, "%lf", &val);
 				(m->peripheralW)[y][x] = val;
@@ -208,7 +241,7 @@ Mouse loadMouse(char *fileName) {
 			count++;
 			y = -1;
 			fgets(buffer, 50, fp);
-			if(count == 5) {
+			if(count == 7) {
 				fgetc(fp);
 				char *s = fgets(buffer, 50, fp);
 				len = atoi(s);
@@ -217,9 +250,9 @@ Mouse loadMouse(char *fileName) {
 		} else if (c == '*') {
 			x = 0;
 			y++;
-			if(count == 4) {
+			if(count == 6) {
 				(m->primaryW)[y] = malloc(sizeof(double) * primaryInput);
-			} else if (count == 5) {
+			} else if (count == 7) {
 				(m->peripheralW)[y] = malloc(sizeof(double) * primaryInput);
 			}
 		} else {

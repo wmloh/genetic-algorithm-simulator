@@ -40,20 +40,19 @@ int randomChoice(double p1, double p2, double p3, double p4) {
 	return 3;
 }
 
-double max(double **arr, int size, int *x, int *y) {
-	double output = arr[0][0];
-	*x = 0;
-	*y = 0;
-	for(int i = 0; i < size; ++i) {
-		for(int j = 0; j < size; ++j) {
-			if(arr[i][j] > output) {
-				output = arr[i][j];
-				*x = j;
-				*y = i;
-			}
+int max(double *arr, int size, double *val) {
+	int x = 0;
+	double maximum = arr[0];
+	for(int i = 1; i < size; ++i) {
+		if(arr[i] > maximum) {
+			maximum = arr[i];
+			x = i;
 		}
 	}
-	return output;
+	if(val) {
+		*val = maximum;
+	}
+	return x;
 }
 
 int **getBox(int **map, int x, int y, int boxSize) {
@@ -104,7 +103,7 @@ double convOpsSum(int **box, double **weight, int boxSize) {
 	return sum;
 }
 
-double **convDotDble(double **box1, double **box2, int size) {
+double **convAdd(double **box1, double **box2, int size) {
 	double **output = malloc(sizeof(double *) * size);
 	for(int i = 0; i < size; ++i) {
 		output[i] = malloc(sizeof(double) * size);
@@ -126,7 +125,7 @@ double **convDot(double **box1, int **box2, int size) {
 	return output;
 }
 
-double **convScalar(double **box, double c, int size) {
+double **convScalar(int **box, double c, int size) {
 	double **output = malloc(sizeof(double *) * size);
 	for(int i = 0; i < size; ++i) {
 		output[i] = malloc(sizeof(double) * size);
@@ -137,11 +136,25 @@ double **convScalar(double **box, double c, int size) {
 	return output;
 }
 
-void transferPrimary(double **box) {
-	box[0][1] += box[0][0] + box[0][2];
-	box[1][0] += box[0][0] + box[2][0];
-	box[2][1] += box[2][0] + box[2][2];
-	box[1][2] += box[0][2] + box[2][2];
+void softmax(double *box) {
+	double sum = 0;
+	#pragma omp parallel for
+	for(int i = 0; i < 4; ++i) {
+		box[i] = exp(box[i]);
+		sum += box[i];
+	}
+
+	#pragma omp parallel for
+	for(int i = 0; i < 4; ++i) {
+		box[i] /= sum;
+	}
+}
+
+void transferPrimary(double **box, double beta) {
+	box[0][1] += beta * (box[0][0] + box[0][2]);
+	box[1][0] += beta * (box[0][0] + box[2][0]);
+	box[2][1] += beta * (box[2][0] + box[2][2]);
+	box[1][2] += beta * (box[0][2] + box[2][2]);
 	box[0][0] = 0;
 	box[0][2] = 0;
 	box[2][0] = 0;
