@@ -12,12 +12,14 @@ struct mapStruct {
 	Mouse m;
 	int *mousePos;
 	int *cheesePos;
+	const int * const resetPos;
 };
 
 typedef struct mapStruct *Map;
 
-Map initMap(int size, Mouse m, int mouseX, int mouseY, int cheeseX, int cheeseY) {
+Map initMap(int size, int mouseX, int mouseY, int cheeseX, int cheeseY) {
 	Map map = malloc(sizeof(struct mapStruct));
+	map->size = size;
 	int **arr = malloc(sizeof(int *) * size);
 	for(int i = 0; i < size; ++i) {
 		arr[i] = calloc(size, sizeof(int));
@@ -25,15 +27,18 @@ Map initMap(int size, Mouse m, int mouseX, int mouseY, int cheeseX, int cheeseY)
 	map->arr = arr;
 	(map->arr)[mouseY][mouseX] = MOUSE;
 	(map->arr)[cheeseY][cheeseX] = CHEESE;
-	map->size = size;
-	map->m = m;
-	generateMemory(m, size);
+
 	map->mousePos = malloc(sizeof(int) * 2);
 	map->cheesePos = malloc(sizeof(int) * 2);
+	*(int **)&(map->resetPos) = malloc(sizeof(int) * 2);
 	(map->mousePos)[0] = mouseX;
 	(map->mousePos)[1] = mouseY;
 	(map->cheesePos)[0] = cheeseX;
 	(map->cheesePos)[1] = cheeseY;
+	
+	*(int *)&(map->resetPos)[0] = mouseX;
+	*(int *)&(map->resetPos)[1] = mouseY;
+	
 	return map;
 }
 
@@ -49,6 +54,13 @@ void newMap(char *fileName, int size) {
 		fprintf(fp, "\r\n");
 	}
 	fclose(fp);
+}
+
+void resetMap(Map map) {
+	(map->arr)[(map->mousePos)[1]][(map->mousePos)[0]] = 0;
+	(map->arr)[(map->resetPos)[1]][(map->resetPos)[0]] = MOUSE;
+	(map->mousePos)[0] = map->resetPos[0];
+	(map->mousePos)[1] = map->resetPos[1];
 }
 
 void applyMap(char *fileName, Map map, int size) {

@@ -3,13 +3,14 @@
 #include "convolution.c"
 
 const int primaryInput = 3;
-const double majorMutation = 0.01;
+const double majorMutation = 0.05;
 
 struct mouse {
 	int gen;
 	double **primaryW;
 	double **peripheralW;
 	int visionRange;
+	int mapSize;
 	int **memory;
 	double alpha; // significance of peripheral vision
 	double beta; // significance of diagonal primary vision
@@ -18,15 +19,18 @@ struct mouse {
 
 typedef struct mouse *Mouse;
 
-Mouse initGenesis(void) {
+void generateMemory(Mouse m, int mapSize);
+
+Mouse initGenesis(int mapSize) {
 	Mouse m = malloc(sizeof(struct mouse));
 	m->gen = 1;
 	m->primaryW = malloc(sizeof(double *) * 3);
 	m->peripheralW = malloc(sizeof(double *) * 3);
 	m->visionRange = 1;
-	m->alpha = 0.1;
-	m->beta = 0.2;
-	m->theta = -0.2;
+	m->mapSize = mapSize;
+	m->alpha = randomSmall(true);
+	m->beta = randomSmall(true);
+	m->theta = randomSmall(true);
 	double *arr1;
 	double *arr2;
 	
@@ -41,10 +45,13 @@ Mouse initGenesis(void) {
 		(m->peripheralW)[i] = arr2;
 	}
 	(m->primaryW)[1][1] = 0;
+
+	generateMemory(m, mapSize);
+
 	return m;
 }
 
-Mouse procreate(Mouse mParent) {
+Mouse procreate(Mouse mParent, int mapSize) {
 	Mouse mChild = malloc(sizeof(struct mouse));
 	mChild->gen = mParent->gen + 1;
 	mChild->primaryW = malloc(sizeof(double *) * primaryInput);
@@ -56,10 +63,9 @@ Mouse procreate(Mouse mParent) {
 			(mChild->primaryW)[i][j] = (mParent->primaryW)[i][j] + randomSmall(true);
 		}
 	}
-
+	generateMemory(mChild, mapSize);
 	int units;
-	//if(randomBool(majorMutation, ((double) 1) - majorMutation)) {
-	if(true){
+	if(randomBool(majorMutation, ((double) 1) - majorMutation)) {
 		mChild->visionRange = mParent->visionRange + 1;
 		int len = mChild->visionRange;
 		int origLen = len - 1;
@@ -127,15 +133,24 @@ Mouse procreate(Mouse mParent) {
 	return mChild;
 }
 
-void generateMemory(Mouse m, int size) {
-	m->memory = malloc(sizeof(int *) * size);
-	for(int i = 0; i < size; ++i) {
-		(m->memory)[i] = calloc(size, sizeof(int));
+void generateMemory(Mouse m, int mapSize) {
+	m->memory = malloc(sizeof(int *) * mapSize);
+	for(int i = 0; i < mapSize; ++i) {
+		(m->memory)[i] = calloc(mapSize, sizeof(int));
 	}
 }
 
 void incrementMemory(Mouse m, int x, int y) {
 	(m->memory)[y][x]++;
+}
+
+void refreshMemory(Mouse m, int mapSize) {
+	for(int i = 0; i < mapSize; ++i) {
+		#pragma omp parallel for
+		for(int j = 0; j < mapSize; ++j) {
+			(m->memory)[i][j] = 0;
+		}
+	}
 }
 
 void saveMouse(Mouse m, char *fileName) {
@@ -184,7 +199,7 @@ void saveMouse(Mouse m, char *fileName) {
 	fclose(fp);
 }
 
-Mouse loadMouse(char *fileName) {
+Mouse loadMouse(char *fileName, int mapSize) {
 	char src[25];
 	strcpy(src, fileName);
 	FILE *fp = fopen(strcat(src, ".txt"), "r");
@@ -199,6 +214,7 @@ Mouse loadMouse(char *fileName) {
 
 	Mouse m = malloc(sizeof(struct mouse));
 	m->primaryW = malloc(sizeof(double *) * primaryInput);
+	generateMemory(m, mapSize);
 
 	while(c != 'E') {
 		if(c == ' ') {
@@ -266,13 +282,18 @@ Mouse loadMouse(char *fileName) {
 
 void exterminate(Mouse m) {
 	int len = 2 * m->visionRange + 1;
+	int mapSize = m->mapSize;
 	for(int i = 0; i < primaryInput; ++i) {
 		free((m->primaryW)[i]);
 	}
 	for(int i = 0; i < len; ++i) {
 		free((m->peripheralW)[i]);
 	}
+	for(int i = 0; i < mapSize; ++i) {
+		free((m->memory)[i]);
+	}
 	free(m->peripheralW);
 	free(m->primaryW);
+	free(m->memory);
 	free(m);
 }

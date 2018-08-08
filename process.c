@@ -33,6 +33,7 @@ double **decidePrimary(Mouse m, Map map) {
 	int **box = getBox(map->arr, (map->mousePos)[0], (map->mousePos)[1], 3);
 	box[1][1] = 0;
 	double **convBox = convDot(m->primaryW, box, 3);
+	freeBox(box, 3);
 	return convBox;
 }
 
@@ -40,6 +41,7 @@ double **decidePeripheral(Mouse m, Map map) {
 	int size = 2 * m->visionRange + 1;
 	int **box = getBox(map->arr, (map->mousePos)[0], (map->mousePos)[1], size);
 	double **convBox = convDot(m->peripheralW, box, size);
+	freeBox(box, size);
 	return convBox;
 }
 
@@ -47,6 +49,7 @@ double **decideMemory(Mouse m, Map map) {
 	int size = 2 * m->visionRange + 1;
 	int **box = getBox(m->memory, (map->mousePos)[0], (map->mousePos)[1], size);
 	double **memoryWeight = convScalar(box, m->theta, size);
+	freeBox(box, 3);
 	return memoryWeight;
 }
 
@@ -62,6 +65,10 @@ int decide(Mouse m, Map map) {
 	softmax(inputs);
 
 	int index = max(inputs, 4, NULL);
+
+	freeBoxDble(primary, 3);
+	freeBoxDble(peripheral, 2 * m->visionRange + 1);
+	freeBoxDble(memory, 3);
 
 	return index;
 }

@@ -79,6 +79,14 @@ void freeBox(int **box, int size) {
 	free(box);
 }
 
+void freeBoxDble(double **box, int size) {
+	#pragma omp parallel for
+	for(int i = 0; i < size; ++i) {
+		free(box[i]);
+	}
+	free(box);
+}
+
 double **convOps(int **box, double **weight, int boxSize) {
 	double **outputBox = malloc(sizeof(double *) * boxSize);
 	for(int i = 0; i < boxSize; ++i) {
@@ -90,17 +98,6 @@ double **convOps(int **box, double **weight, int boxSize) {
 		outputBox[i] = arr;
 	}
 	return outputBox;
-}
-
-double convOpsSum(int **box, double **weight, int boxSize) {
-	double sum = 0;
-	for(int i = 0; i < boxSize; ++i) {
-		#pragma omp parallel for
-		for(int j = 0; j < boxSize; ++j) {
-			sum += weight[i][j] * box[i][j];
-		}
-	}
-	return sum;
 }
 
 double **convAdd(double **box1, double **box2, int size) {
@@ -187,4 +184,5 @@ void transferPeripheral(double **peri, int size, double **primary, double alpha)
 			}
 		}
 	}
-}	
+}
+

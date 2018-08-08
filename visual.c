@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "process.c"
 #include <unistd.h>
+#include "process.c"
 
 void boxPrint(int **box, int size) {
 	for(int i = 0; i < size; ++i) {
